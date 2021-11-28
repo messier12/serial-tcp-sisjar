@@ -7,9 +7,13 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
+#include <math.h>
+#include <time.h>
 
 #include <sys/stat.h>
 
+#define MAX_BUFF_SIZE 24
+#define min(a,b) (a<b)?a:b
 struct SerialComm{
     int fd;
     int connected;
@@ -24,5 +28,5 @@ int set_interface_attribs(struct SerialComm* serial);
 int open_connection(struct SerialComm* serial);
 void close_connection(struct SerialComm* serial);
 void write_data(struct SerialComm* serial,const char*, int);
-int read_data(struct SerialComm* serial,char* buffer);
+int read_data(struct SerialComm* serial,char* buffer, int timeout);
 bool is_device_connected(struct SerialComm* serial);
