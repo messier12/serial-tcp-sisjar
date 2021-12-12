@@ -89,13 +89,14 @@ void thread_run(void* threadargs)
         //for(int i=0;i<len;i++)
         //    printf("%c",buff[i]);
         //printf("\n");
+        if(len<=0)
+            continue;
+
         int sent_bytes = send(sock,"ok",3,0);
         if(sent_bytes == -1)
         {
             printf("error %d %s",errno,strerror(errno));
         }
-        if(len<=0)
-            continue;
         
         printf("From client%d %d bytes: %s\n",args->id,len,buff);
 
