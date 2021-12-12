@@ -111,11 +111,12 @@ void thread_run(void* threadargs)
 void end_thread_by_id(int id)
 {
     exit_requests[id] = 1;
-    if(pthread_kill(thread_ids[id])==0)
+    //if(pthread_kill(thread_ids[id],S)==0)
         if(pthread_cancel(thread_ids[id])!=0)
             printf("ERROR: end thread %d failed\n",id);
 }
 pthread_t thread_ids[100];
+
 // Driver function
 int main(int argc, char** argv)
 {
