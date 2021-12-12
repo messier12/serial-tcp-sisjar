@@ -7,6 +7,8 @@
 #include <sys/types.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <errno.h>
+#include <signal.h>
 
 
 #define MAX 80
@@ -22,20 +24,41 @@ struct ThreadArgs
     char* buffer;
 };
 
+int client_id;
+volatile short exit_requests[100];
+
 void thread_cleanup_handler(void* _args)
 {
     struct ThreadArgs* args = (struct ThreadArgs*)_args;
     printf("cleaning thread%d..\n",args->id);
+    exit_requests[args->id] = 0;
     free(args->buffer);
     free(args);
     printf("cleaning done");
 }
 
+
+//void end_thead_by_id(int id);
+//void signal_handler(int sig_number, siginfo_t* sig_info, void* context){
+//    struct ThreadArgs* args = (struct ThreadArgs*)context;
+//    if(sig_number == SIGPIPE)
+//    {
+//        printf("thread%d accessed a closed socket%d",args->id,args->id);
+//        end_thread_by_id(args->id);
+//    }
+//    if(sig_number == SIGKILL || sig_number == SIGTERM){
+//        printf("exitting..\n");
+//        for(int i=0;i<=client_id;i++)
+//            end_thread_by_id(i);
+//        exit(1);
+//    }
+//}
    
-void loop(struct ThreadArgs* args, const char* logfile);
+//void loop(struct ThreadArgs* args, const char* logfile);
 void thread_run(void* threadargs)
 {
     pthread_cleanup_push(thread_cleanup_handler,threadargs);
+    struct sigaction sig_action;
 
     struct ThreadArgs* args = (struct ThreadArgs*)threadargs;
     char logfile[100] = {'\0'};
@@ -50,42 +73,47 @@ void thread_run(void* threadargs)
     sock = args->socket;
     char* buff = args->buffer;
 
-    printf("debug\n");
+    //printf("debug\n");
     int n;
     // infinite loop for chat
     FILE* fp = fopen(logfile,"a+");
     printf("START READING\n");
+
 
     for (;exit_requests[args->id] == 0;) {
         bzero(buff, MAX);
         // read the message from client and copy it in buffer
         //int len = recv(sockfd, buff, sizeof(buff),MSG_DONTWAIT);
         int len = recv(sock, buff, sizeof(buff),0);
-        printf("client%d: ",args->id);
-        for(int i=0;i<len;i++)
-            printf("%c",buff[i]);
-        printf("\n");
-        send(sock,"ok",3,0);
+        //printf("client%d: ",args->id);
+        //for(int i=0;i<len;i++)
+        //    printf("%c",buff[i]);
+        //printf("\n");
+        int sent_bytes = send(sock,"ok",3,0);
+        if(sent_bytes == -1)
+        {
+            printf("error %d %s",errno,strerror(errno));
+        }
         if(len<=0)
             continue;
         
-        // print buffer which contains the client contents
         printf("From client%d %d bytes: %s\n",args->id,len,buff);
 
         fprintf(fp,"%s\n",buff);
         fflush(fp);
     }
 
-
     fclose(fp);
     pthread_cleanup_pop(1);
 }
    
 
-volatile short exit_requests[100];
 void end_thread_by_id(int id)
 {
     exit_requests[id] = 1;
+    if(pthread_kill(thread_ids[id])==0)
+        if(pthread_cancel(thread_ids[id])!=0)
+            printf("ERROR: end thread %d failed\n",id);
 }
 pthread_t thread_ids[100];
 // Driver function
@@ -128,7 +156,7 @@ int main(int argc, char** argv)
         printf("Server listening..\n");
     len = sizeof(cli);
 
-    int client_id = -1;
+    client_id = -1;
     for(int i=0;i<100;i++)
         exit_requests[i] = 0;
    
@@ -139,7 +167,7 @@ int main(int argc, char** argv)
         if (connfd < 0) {
             printf("server accept failed...\n");
             continue;
-            exit(0);
+            //exit(0);
         }
         else
         {
@@ -157,15 +185,18 @@ int main(int argc, char** argv)
         thread_args->id = client_id;
         thread_args->socket = connfd;
         exit_requests[client_id] = 0;
-        int ret = pthread_create(&thread_ids[client_id],NULL,thread_run,thread_args);
+        //pthread_create(&thread_ids[client_id],NULL,thread_run,thread_args);
         //printf("debug\n");
-        if(ret!=0)
+        if(pthread_create(&thread_ids[client_id],NULL,thread_run,thread_args)!=0)
         {
             printf("error pthread_create");
-            exit(1);
+            //exit(1);
         }
     }
     // After chatting close the socket
+    for(int i=0;i<client_id;i++)
+        end_thread_by_id(i);
+
     close(sockfd);
-    // close the file
+    return 0;
 }
