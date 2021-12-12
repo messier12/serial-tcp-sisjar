@@ -90,7 +90,14 @@ void thread_run(void* threadargs)
         //    printf("%c",buff[i]);
         //printf("\n");
         if(len<=0)
+        {
+            if(errno == SIGPIPE)
+            {
+                printf("Thread%d: socket %d is closed\n",args->id,args->socket);
+                end_thread_by_id(args->id);
+            }
             continue;
+        }
 
         int sent_bytes = send(sock,"ok",3,0);
         if(sent_bytes == -1)
