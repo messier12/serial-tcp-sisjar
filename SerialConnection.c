@@ -76,7 +76,7 @@ int read_data(struct SerialComm* serial,char* buffer, int timeout){
     // using {} delimiter format
     if(serial->connected != 1)
     {
-        printf("SERIAL NOT CONNECTED");
+        printf("SERIAL NOT CONNECTED\n");
         return -1;
     }
 
